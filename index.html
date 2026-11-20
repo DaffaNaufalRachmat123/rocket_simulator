@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Starship &amp; Super Heavy — 3D Realistic Flight Simulator</title>
+
+  <!-- Tailwind CSS & Typography -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+
+  <!-- Custom Stylesheet (File 2/6) -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Shared Three.js version for the existing renderer and optional Google Tiles. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.171.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.171.0/examples/jsm/",
+        "three/examples/jsm/": "https://unpkg.com/three@0.171.0/examples/jsm/",
+        "3d-tiles-renderer": "https://unpkg.com/3d-tiles-renderer@0.4.15/build/index.js",
+        "3d-tiles-renderer/plugins": "https://unpkg.com/3d-tiles-renderer@0.4.15/build/index.plugins.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- Fullscreen WebGL 3D Canvas -->
+  <canvas id="webgl-canvas"></canvas>
+
+  <!-- TOP MISSION CONTROL HEADER -->
+  <header id="top-header" class="fixed top-0 left-0 right-0 z-30 px-2.5 py-2 flex flex-wrap items-center justify-between gap-2 hud-panel border-x-0 border-t-0">
+    <!-- Left: Mission Clock & Dual Vehicle Status -->
+    <div class="flex items-center gap-3">
+      <div class="flex flex-col">
+        <span class="text-[9px] uppercase tracking-widest text-cyan-300 font-bold">STARBASE FLIGHT CONTROL</span>
+        <span id="mission-clock" class="font-mono-num text-sm sm:text-base font-extrabold text-white">T- 00:00:18</span>
+      </div>
+
+      <div class="hidden xl:flex flex-col gap-0.5 text-[10px] border-l border-slate-700/70 pl-3 font-mono-num">
+        <div class="flex items-center gap-1.5">
+          <span class="text-slate-400">SHIP:</span>
+          <span id="badge-ship" class="text-cyan-300 font-bold">SIAP LUNCUR</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-slate-400">BOOSTER:</span>
+          <span id="badge-booster" class="text-orange-300 font-bold">SIAP LUNCUR</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Camera Switchers, Dual Monitor Controls, Timeline & Audio -->
+    <div class="flex flex-wrap items-center gap-1">
+      <button data-cam="starship" class="cam-btn px-2 py-1.5 rounded-lg text-[11px] font-bold bg-cyan-500/30 text-cyan-100 border border-cyan-400/50 transition">Fokus Starship</button>
+      <button data-cam="booster" class="cam-btn px-2 py-1.5 rounded-lg text-[11px] font-bold bg-slate-800/85 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Fokus Booster</button>
+      <button data-cam="orbit" class="cam-btn px-2 py-1.5 rounded-lg text-[11px] font-bold bg-slate-800/85 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Kamera Orbit Bumi</button>
+      <button data-cam="mechazilla" class="cam-btn px-2 py-1.5 rounded-lg text-[11px] font-bold bg-slate-800/85 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Mechazilla</button>
+      <button data-cam="asds" class="cam-btn px-2 py-1.5 rounded-lg text-[11px] font-bold bg-slate-800/85 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Pad Laut ASDS</button>
+      <button data-cam="engine" class="cam-btn px-2 py-1.5 rounded-lg text-[11px] font-bold bg-slate-800/85 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">Engine TVC</button>
+      <button id="btn-hud-toggle" aria-pressed="true" class="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-slate-800 text-cyan-200 border border-slate-600">HUD: ON</button>
+      <button id="btn-world" aria-pressed="false" class="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-slate-800 text-cyan-200 border border-slate-600">World: Simulator</button>
+
+      <div class="h-5 w-px bg-slate-700/70 mx-0.5 hidden sm:block"></div>
+
+      <button id="btn-pip-toggle" aria-controls="pip-dock" aria-expanded="true" title="Tampilkan / Sembunyikan Dual Monitor Pendaratan" class="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-400/45 hover:bg-emerald-500/30 transition">
+        📺 Monitor: ON
+      </button>
+      <button id="btn-pip-size" title="Perbesar / Kecilkan Layar Monitor" class="px-2 py-1.5 rounded-lg text-[11px] font-semibold bg-slate-800/85 hover:bg-slate-700 text-slate-200 border border-slate-600/50 transition">
+        ⛶ Perbesar
+      </button>
+      <button id="btn-timeline-drawer" title="Lihat Rincian Countdown &amp; Flight Timeline" class="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-indigo-500/25 text-indigo-200 border border-indigo-400/45 hover:bg-indigo-500/35 transition">
+        📋 Timeline
+      </button>
+      <button id="btn-audio" title="Aktifkan / Matikan Audio Mesin &amp; Sonic Boom" class="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-slate-800/90 hover:bg-slate-700 text-cyan-200 border border-slate-600/60 transition">
+        🔊 ON
+      </button>
+    </div>
+  </header>
+
+  <!-- EVENT NOTIFICATION TOAST -->
+  <div id="event-toast" class="fixed left-1/2 -translate-x-1/2 z-40 pointer-events-none opacity-0 transition-all duration-300" style="top: 64px;">
+    <div class="hud-panel px-4 py-2 rounded-xl border-cyan-400/45 text-center max-w-lg">
+      <div id="event-toast-title" class="text-xs font-extrabold tracking-widest uppercase text-cyan-300">INFO MISI</div>
+      <div id="event-toast-msg" class="text-xs text-slate-200 mt-0.5">Sistem siap diluncurkan dari Starbase OLM.</div>
+    </div>
+  </div>
+
+  <!-- OFFICIAL COUNTDOWN & FLIGHT TIMELINE DRAWER -->
+  <div id="timeline-drawer" class="hidden fixed left-1/2 -translate-x-1/2 z-40 w-[94vw] max-w-[580px] max-h-[72vh] hud-panel rounded-2xl p-4 flex flex-col border-cyan-400/40" style="top: 72px;">
+    <div class="flex items-center justify-between border-b border-slate-700/70 pb-2 mb-2">
+      <div>
+        <div class="text-xs font-extrabold tracking-widest uppercase text-white">COUNTDOWN &amp; FLIGHT TIMELINE RESMI</div>
+        <div class="text-[10px] text-slate-400">Klik baris berlabel "Lompat" untuk langsung menuju fase terkait</div>
+      </div>
+      <button id="btn-close-timeline" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600/50">✕ Tutup</button>
+    </div>
+    <div id="timeline-list" class="overflow-y-auto custom-scroll space-y-1 pr-1 font-mono-num text-[11px]"></div>
+  </div>
+
+  <!-- LEFT CONTROL PANEL: LAUNCH, JUMP PRESETS, TIME WARP, TVC GIMBAL & ENGINE CLUSTERS -->
+  <aside id="left-panel" class="fixed left-2.5 z-20 w-[244px] max-h-[calc(100vh-110px)] overflow-y-auto custom-scroll hud-panel rounded-2xl p-3 space-y-2.5" style="top: 64px;">
+    <!-- Primary Launch Controls -->
+    <div>
+      <button id="btn-launch" class="w-full py-2.5 px-3 rounded-xl font-extrabold text-xs uppercase tracking-wider text-white bg-gradient-to-r from-orange-500 via-rose-500 to-cyan-500 hover:brightness-110 shadow-lg shadow-orange-600/25 transition">
+        ▶ LUNCURKAN STARSHIP
+      </button>
+      <div class="grid grid-cols-2 gap-1.5 mt-1.5">
+        <button id="btn-pause" class="py-1.5 rounded-lg text-[11px] font-bold bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-600/50 transition">⏸ Jeda</button>
+        <button id="btn-reset" class="py-1.5 rounded-lg text-[11px] font-bold bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-600/50 transition">↺ Reset</button>
+      </div>
+    </div>
+
+    <!-- Quick-Jump Mission Phases -->
+    <div class="pt-2 border-t border-slate-700/60">
+      <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1.5">Lompat Fase Misi</div>
+      <div class="grid grid-cols-2 gap-1.5">
+        <button data-jump="launch" class="jump-btn py-1.5 px-2 rounded-lg text-[10px] font-bold bg-slate-800/90 hover:bg-cyan-500/25 text-slate-200 border border-slate-700 hover:border-cyan-400/50 transition">1. Peluncuran</button>
+        <button data-jump="hotstage" class="jump-btn py-1.5 px-2 rounded-lg text-[10px] font-bold bg-slate-800/90 hover:bg-orange-500/25 text-slate-200 border border-slate-700 hover:border-orange-400/50 transition">2. Sep &amp; Boostback</button>
+        <button data-jump="booster_land" class="jump-btn py-1.5 px-2 rounded-lg text-[10px] font-bold bg-slate-800/90 hover:bg-amber-500/25 text-slate-200 border border-slate-700 hover:border-amber-400/50 transition">3. Booster ASDS</button>
+        <button data-jump="orbit" class="jump-btn py-1.5 px-2 rounded-lg text-[10px] font-bold bg-slate-800/90 hover:bg-indigo-500/25 text-slate-200 border border-slate-700 hover:border-indigo-400/50 transition">4. Orbit &amp; Starlink</button>
+        <button data-jump="reentry" class="jump-btn py-1.5 px-2 rounded-lg text-[10px] font-bold bg-slate-800/90 hover:bg-rose-500/25 text-slate-200 border border-slate-700 hover:border-rose-400/50 transition">5. Deorbit &amp; Entry</button>
+        <button data-jump="catch" class="jump-btn py-1.5 px-2 rounded-lg text-[10px] font-bold bg-slate-800/90 hover:bg-emerald-500/25 text-slate-200 border border-slate-700 hover:border-emerald-400/50 transition">6. Catch Mechazilla</button>
+        <button data-jump="booster_catch" class="jump-btn col-span-2 py-1.5 px-2 rounded-lg text-[10px] font-bold bg-slate-800/90 hover:bg-emerald-500/25 text-slate-200 border border-slate-700 hover:border-emerald-400/50 transition">Latihan Booster Catch · Fisika</button>
+      </div>
+    </div>
+
+    <!-- Time Warp & SAS / Manual Separation -->
+    <div class="pt-2 border-t border-slate-700/60 space-y-1.5">
+      <div class="flex items-center justify-between gap-1">
+        <span class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Waktu</span>
+        <div class="flex gap-1">
+          <button data-warp="1" class="warp-btn px-1.5 py-0.5 rounded-md text-[10px] font-mono-num font-bold bg-cyan-500/30 text-cyan-200 border border-cyan-400/40">1x</button>
+          <button data-warp="2" class="warp-btn px-1.5 py-0.5 rounded-md text-[10px] font-mono-num font-bold bg-slate-800/80 text-slate-400 border border-slate-700 hover:text-white">2x</button>
+          <button data-warp="4" class="warp-btn px-1.5 py-0.5 rounded-md text-[10px] font-mono-num font-bold bg-slate-800/80 text-slate-400 border border-slate-700 hover:text-white">4x</button>
+          <button data-warp="8" class="warp-btn px-1.5 py-0.5 rounded-md text-[10px] font-mono-num font-bold bg-slate-800/80 text-slate-400 border border-slate-700 hover:text-white">8x</button>
+          <button data-warp="16" class="warp-btn px-1.5 py-0.5 rounded-md text-[10px] font-mono-num font-bold bg-slate-800/80 text-slate-400 border border-slate-700 hover:text-white">16x</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-1.5">
+        <button id="btn-cutaway" aria-pressed="false" class="col-span-2 py-1 rounded-lg text-[10px] font-bold bg-slate-800 text-cyan-200 border border-slate-600/50">Cutaway Starship: OFF</button>
+        <button id="btn-sas" class="py-1 rounded-lg text-[10px] font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-400/40 transition">SAS: ON (T)</button>
+        <button id="btn-stage" class="py-1 rounded-lg text-[10px] font-bold bg-orange-500/20 text-orange-200 border border-orange-400/40 hover:bg-orange-500/30 transition">Pisah (Space)</button>
+      </div>
+    </div>
+
+    <!-- Flexible X/Y Axis TVC Gimbal Controller -->
+    <div class="pt-2 border-t border-slate-700/60">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-300">Gimbal TVC (±15°)</span>
+        <button id="btn-auto-tvc" class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/25 text-cyan-200 border border-cyan-400/45 transition">AUTO ORBIT</button>
+      </div>
+
+      <div class="flex items-center gap-2.5">
+        <div id="gimbal-pad" class="gimbal-pad shrink-0" title="Seret atau tekan W/A/S/D untuk menggerakkan nozzle X/Y">
+          <div class="absolute inset-x-0 top-1/2 h-px bg-cyan-400/25"></div>
+          <div class="absolute inset-y-0 left-1/2 w-px bg-cyan-400/25"></div>
+          <div id="gimbal-knob" class="gimbal-knob"></div>
+        </div>
+        <div class="font-mono-num text-[10px] space-y-1 flex-1">
+          <div class="flex justify-between"><span class="text-slate-400">Target:</span><span id="tvc-vehicle" class="text-white font-bold">STARSHIP</span></div>
+          <div class="flex justify-between"><span class="text-slate-400">Pitch X:</span><span id="val-gx" class="text-cyan-300 font-bold">0.0°</span></div>
+          <div class="flex justify-between"><span class="text-slate-400">Yaw Y:</span><span id="val-gy" class="text-cyan-300 font-bold">0.0°</span></div>
+          <div class="text-[9px] text-slate-500 pt-0.5">WASD / Seret Pad</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Engine Cluster Status (33 Booster + 6 Starship) -->
+    <div class="pt-2 border-t border-slate-700/60">
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Klaster Mesin Raptor</span>
+        <span id="eng-summary" class="font-mono-num text-[10px] text-cyan-300 font-bold">S:0/6 | B:0/33</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2 text-center">
+        <div class="bg-slate-950/75 rounded-xl p-1.5 border border-slate-800">
+          <canvas id="cluster-booster" width="84" height="84" class="mx-auto"></canvas>
+          <div class="text-[9px] text-orange-300 font-bold mt-0.5">SUPER HEAVY (33)</div>
+        </div>
+        <div class="bg-slate-950/75 rounded-xl p-1.5 border border-slate-800">
+          <canvas id="cluster-ship" width="84" height="84" class="mx-auto"></canvas>
+          <div class="text-[9px] text-cyan-300 font-bold mt-0.5">STARSHIP (6)</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- RIGHT PANEL: TELEMETRY, PROPELLANTS & 360° EARTH ORBIT MINIMAP -->
+  <aside id="right-panel" class="hidden md:block fixed right-2.5 z-20 w-[248px] max-h-[calc(100vh-110px)] overflow-y-auto custom-scroll hud-panel rounded-2xl p-3 space-y-2.5" style="top: 64px;">
+    <div class="flex items-center justify-between">
+      <span id="tel-header" class="text-[10px] font-extrabold uppercase tracking-widest text-cyan-300">Telemetri: STARSHIP</span>
+      <span id="maxq-pill" class="hidden px-1.5 py-0.5 rounded bg-rose-500/25 border border-rose-400/60 text-[9px] font-mono-num font-bold text-rose-200 animate-pulse">MAX-Q</span>
+    </div>
+
+    <div class="grid grid-cols-2 gap-1.5 font-mono-num">
+      <div class="bg-slate-950/75 rounded-lg p-1.5 border border-slate-800">
+        <div class="text-[9px] text-slate-400">KETINGGIAN</div>
+        <div id="tel-alt" class="text-xs font-bold text-white">0 m</div>
+      </div>
+      <div class="bg-slate-950/75 rounded-lg p-1.5 border border-slate-800">
+        <div class="text-[9px] text-slate-400">KECEPATAN</div>
+        <div id="tel-speed" class="text-xs font-bold text-cyan-300">0 m/s</div>
+      </div>
+      <div class="bg-slate-950/75 rounded-lg p-1.5 border border-slate-800">
+        <div class="text-[9px] text-slate-400">TWR / G-FORCE</div>
+        <div class="text-xs font-bold text-amber-300"><span id="tel-twr">0.00</span> / <span id="tel-g">1.0G</span></div>
+      </div>
+      <div class="bg-slate-950/75 rounded-lg p-1.5 border border-slate-800">
+        <div class="text-[9px] text-slate-400">TEKANAN Q</div>
+        <div id="tel-q" class="text-xs font-bold text-slate-200">0.0 kPa</div>
+      </div>
+      <div class="bg-slate-950/75 rounded-lg p-1.5 border border-slate-800">
+        <div class="text-[9px] text-slate-400">VERTIKAL VY</div>
+        <div id="tel-vy" class="text-xs font-bold text-slate-200">0 m/s</div>
+      </div>
+      <div class="bg-slate-950/75 rounded-lg p-1.5 border border-slate-800">
+        <div class="text-[9px] text-slate-400">PITCH / SUDUT</div>
+        <div id="tel-pitch" class="text-xs font-bold text-slate-200">90.0°</div>
+      </div>
+    </div>
+
+    <!-- Mechazilla & Orbital Telemetry -->
+    <div class="bg-slate-950/75 rounded-xl p-2 border border-slate-800 font-mono-num text-[10px] space-y-1">
+      <div class="flex justify-between"><span class="text-slate-400">Mechazilla:</span><span id="tel-mechazilla" class="text-emerald-300 font-bold">SIAGA</span></div>
+      <div class="flex justify-between"><span class="text-slate-400">Orbit Bumi:</span><span id="tel-orbit-prog" class="text-indigo-300 font-bold">0.0° (0%)</span></div>
+      <div class="flex justify-between"><span class="text-slate-400">Apo / Peri:</span><span id="tel-apo-peri" class="text-cyan-300 font-bold">0 / 0 km</span></div>
+    </div>
+
+    <!-- Propellant Gauges (Main + Header Tanks) -->
+    <div class="pt-2 border-t border-slate-700/60 space-y-2 font-mono-num text-[10px]">
+      <div>
+        <div class="flex justify-between mb-0.5"><span class="text-orange-300 font-bold">Booster LOX/CH4</span><span id="fuel-b-pct">100%</span></div>
+        <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden mb-1"><div id="bar-b-main" class="h-full bg-gradient-to-r from-orange-500 to-amber-400" style="width:100%"></div></div>
+        <div class="h-1 bg-slate-800 rounded-full overflow-hidden" title="Booster Landing Header Tank"><div id="bar-b-header" class="h-full bg-amber-300" style="width:100%"></div></div>
+      </div>
+      <div>
+        <div class="flex justify-between mb-0.5"><span class="text-cyan-300 font-bold">Starship LOX/CH4</span><span id="fuel-s-pct">100%</span></div>
+        <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden mb-1"><div id="bar-s-main" class="h-full bg-gradient-to-r from-cyan-500 to-indigo-400" style="width:100%"></div></div>
+        <div class="h-1 bg-slate-800 rounded-full overflow-hidden" title="Starship Catch Header Tank"><div id="bar-s-header" class="h-full bg-emerald-400" style="width:100%"></div></div>
+      </div>
+    </div>
+
+    <!-- 2D Earth Orbit & Trajectory Mini-Map -->
+    <div class="pt-2 border-t border-slate-700/60">
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Peta Orbit Bumi 360°</span>
+        <span class="text-[9px] font-mono-num text-cyan-300">TIMUR 90°</span>
+      </div>
+      <canvas id="minimap-canvas" width="222" height="118" class="w-full rounded-xl bg-slate-950/90 border border-slate-800"></canvas>
+    </div>
+  </aside>
+
+  <!-- DUAL LIVE LANDING MONITORS (MULTI-VIEWPORT PiP) -->
+  <div id="pip-dock" class="pointer-events-auto" aria-label="Monitor Starship dan Booster">
+    <!-- MONITOR 1: STARSHIP / ORBIT / MECHAZILLA CATCH -->
+    <div id="pip-card-ship" class="pip-card rounded-xl overflow-hidden w-[210px] sm:w-[244px] cursor-pointer" title="Klik untuk memfokuskan kamera utama ke Starship">
+      <div class="px-2 py-1 bg-slate-950/85 flex items-center justify-between text-[9px] font-mono-num border-b border-slate-800">
+        <span class="text-cyan-300 font-bold">● CAM-01 // STARSHIP</span>
+        <span id="pip-ship-status" class="text-white truncate max-w-[110px]">SIAP LUNCUR</span>
+      </div>
+      <div id="pip-view-ship" class="pip-viewport w-full h-[108px] sm:h-[124px]"></div>
+      <div class="px-2 py-1 bg-slate-950/85 grid grid-cols-4 gap-1 text-[9px] font-mono-num text-center border-t border-slate-800">
+        <div><span class="text-slate-500 block text-[8px]">ALT</span><span id="pip-ship-alt" class="text-white font-bold">0m</span></div>
+        <div><span class="text-slate-500 block text-[8px]">VEL</span><span id="pip-ship-vel" class="text-cyan-300 font-bold">0</span></div>
+        <div><span class="text-slate-500 block text-[8px]">ENG</span><span id="pip-ship-eng" class="text-amber-300 font-bold">0/6</span></div>
+        <div><span class="text-slate-500 block text-[8px]">TVC</span><span id="pip-ship-tvc" class="text-emerald-300 font-bold">0°</span></div>
+      </div>
+    </div>
+
+    <!-- MONITOR 2: SUPER HEAVY BOOSTER ASDS -->
+    <div id="pip-card-booster" class="pip-card rounded-xl overflow-hidden w-[210px] sm:w-[244px] cursor-pointer" title="Klik untuk memfokuskan kamera utama ke Super Heavy Booster">
+      <div class="px-2 py-1 bg-slate-950/85 flex items-center justify-between text-[9px] font-mono-num border-b border-slate-800">
+        <span class="text-orange-300 font-bold">● CAM-02 // BOOSTER ASDS</span>
+        <span id="pip-booster-status" class="text-white truncate max-w-[100px]">SIAP LUNCUR</span>
+      </div>
+      <div id="pip-view-booster" class="pip-viewport w-full h-[108px] sm:h-[124px]"></div>
+      <div class="px-2 py-1 bg-slate-950/85 grid grid-cols-4 gap-1 text-[9px] font-mono-num text-center border-t border-slate-800">
+        <div><span class="text-slate-500 block text-[8px]">ALT</span><span id="pip-booster-alt" class="text-white font-bold">0m</span></div>
+        <div><span class="text-slate-500 block text-[8px]">VEL</span><span id="pip-booster-vel" class="text-orange-300 font-bold">0</span></div>
+        <div><span class="text-slate-500 block text-[8px]">ENG</span><span id="pip-booster-eng" class="text-amber-300 font-bold">0/33</span></div>
+        <div><span class="text-slate-500 block text-[8px]">TVC</span><span id="pip-booster-tvc" class="text-emerald-300 font-bold">0°</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM OFFICIAL MISSION TIMELINE STRIP -->
+  <footer class="fixed bottom-1.5 left-2 right-2 z-20 pointer-events-none flex justify-center">
+    <div class="hud-panel rounded-full px-3 sm:px-5 py-1.5 flex items-center gap-1.5 sm:gap-2 overflow-x-auto max-w-full pointer-events-auto">
+      <div id="tl-deluge" class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 whitespace-nowrap"><span class="w-2 h-2 rounded-full bg-slate-700"></span>Diverter -17s</div>
+      <span class="text-slate-700 text-xs">›</span>
+      <div id="tl-liftoff" class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 whitespace-nowrap"><span class="w-2 h-2 rounded-full bg-slate-700"></span>Liftoff</div>
+      <span class="text-slate-700 text-xs">›</span>
+      <div id="tl-maxq" class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 whitespace-nowrap"><span class="w-2 h-2 rounded-full bg-slate-700"></span>Max-Q 00:58</div>
+      <span class="text-slate-700 text-xs">›</span>
+      <div id="tl-sep" class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 whitespace-nowrap"><span class="w-2 h-2 rounded-full bg-slate-700"></span>Sep 02:22</div>
+      <span class="text-slate-700 text-xs">›</span>
+      <div id="tl-boostback" class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 whitespace-nowrap"><span class="w-2 h-2 rounded-full bg-slate-700"></span>Boostback</div>
+      <span class="text-slate-700 text-xs">›</span>
+      <div id="tl-asds" class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 whitespace-nowrap"><span class="w-2 h-2 rounded-full bg-slate-700"></span>ASDS 07:01</div>
+      <span class="text-slate-700 text-xs">›</span>
+      <div id="tl-orbit" class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 whitespace-nowrap"><span class="w-2 h-2 rounded-full bg-slate-700"></span>OIB &amp; Starlink</div>
+      <span class="text-slate-700 text-xs">›</span>
+      <div id="tl-entry" class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 whitespace-nowrap"><span class="w-2 h-2 rounded-full bg-slate-700"></span>Entry 09:28</div>
+      <span class="text-slate-700 text-xs">›</span>
+      <div id="tl-catch" class="flex items-center gap-1 text-[10px] font-semibold text-slate-500 whitespace-nowrap"><span class="w-2 h-2 rounded-full bg-slate-700"></span>Catch 09:50</div>
+    </div>
+  </footer>
+
+  <!-- Main Application Entry Point (File 6/6) -->
+  <div id="google-world" class="hidden" aria-label="Google Maps 3D Starbase"></div>
+  <dialog id="map-settings" class="hud-panel rounded-xl p-4 text-slate-100">
+    <form id="map-settings-form" class="space-y-3">
+      <h2 class="font-bold">Google World · API key browser</h2>
+      <p class="text-xs text-slate-300">Maps JavaScript 3D dan Map Tiles adalah layanan berbeda. Kunci disimpan hanya di browser ini.</p>
+      <label class="block text-xs" for="map-api-key">API key</label>
+      <input id="map-api-key" type="password" autocomplete="off" class="w-full rounded bg-slate-900 border border-slate-600 p-2" />
+      <div class="flex gap-2"><button type="submit" class="rounded bg-cyan-700 px-3 py-2">Simpan &amp; buka 3D</button><button id="map-settings-close" type="button" class="rounded bg-slate-700 px-3 py-2">Tutup</button></div>
+      <p id="map-settings-status" class="text-xs text-amber-200" role="status"></p>
+    </form>
+  </dialog>
+  <div id="terrain-credit" role="status"></div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

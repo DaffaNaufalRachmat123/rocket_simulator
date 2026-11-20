@@ -1,0 +1,249 @@
+/* ============================================================================
+STARSHIP & SUPER HEAVY — 3D FLIGHT SIMULATOR
+File 2/6: style.css
+Mengatur tata letak WebGL fullscreen, glassmorphism HUD, TVC Gimbal Pad,
+Dual Live Landing Monitor (PiP), serta animasi indikator fase kritis.
+============================================================================ */
+
+/* --- 1. RESET & FULLSCREEN BASE --- */
+
+* {
+box-sizing: border-box;
+}
+
+html,
+body {
+margin: 0;
+padding: 0;
+width: 100%;
+height: 100%;
+overflow: hidden;
+background-color: #020617;
+color: #f8fafc;
+font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+user-select: none;
+-webkit-user-select: none;
+}
+
+/* Kanvas WebGL 3D menempati seluruh layar di belakang HUD */
+canvas#webgl-canvas {
+position: fixed;
+inset: 0;
+width: 100vw;
+height: 100vh;
+display: block;
+z-index: 1;
+}
+
+/* --- 2. TYPOGRAPHY & HUD PANELS --- */
+/* Keep the original HUD above WebGL even while the utility CDN is loading. */
+#top-header { position: fixed; top: 0; left: 0; right: 0; z-index: 30; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; }
+#left-panel, #right-panel { position: fixed; top: 64px; z-index: 20; max-height: calc(100vh - 110px); overflow-y: auto; padding: 12px; border-radius: 16px; }
+#left-panel { left: 10px; width: 244px; }
+#right-panel { right: 10px; width: 248px; }
+#pip-dock { position: fixed; top: var(--hud-top, 64px); right: 10px; bottom: auto; left: auto; transform: none; width: var(--monitor-width, 248px); z-index: 20; display: flex; flex-direction: column; gap: 8px; }
+#pip-dock .pip-card, #pip-dock.pip-enlarged .pip-card { width: 100%; flex: none; }
+#pip-dock .pip-viewport, #pip-dock.pip-enlarged .pip-viewport { height: var(--monitor-height, 124px); transition: none; }
+#pip-dock.pip-enlarged { --monitor-width: 310px; }
+body.hud-hidden #left-panel, body.hud-hidden #right-panel { display: none; }
+#google-world { position: fixed; z-index: 2; left: var(--view-left, 265px); top: var(--hud-top,64px); width: var(--view-width,calc(100vw - 530px)); height: var(--view-height,calc(100vh - 110px)); }
+#google-world > gmp-map-3d { width: 100%; height: 100%; }
+#map-settings { width: min(440px, calc(100vw - 24px)); margin: auto; z-index: 50; }
+#map-settings::backdrop { background: rgba(0,0,0,.55); }
+#timeline-drawer, #event-toast { position: fixed; left: 50%; transform: translateX(-50%); z-index: 40; }
+body > footer { position: fixed; bottom: 6px; left: 8px; right: 8px; z-index: 20; display: flex; justify-content: center; }
+.hidden { display: none; }
+#pip-dock.hidden { display: none; }
+@media (min-width: 768px) { #right-panel { display: block; } }
+
+.font-mono-num {
+font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+font-variant-numeric: tabular-nums;
+}
+
+#terrain-credit { position: fixed; left: var(--view-left,265px); bottom: 38px; z-index: 21; max-width: var(--view-width,400px); padding: 5px 8px; border-radius: 6px; background: rgba(7,13,28,.85); font-size: 10px; color: #cbd5e1; pointer-events: none; }
+
+.hud-panel {
+background: rgba(7, 13, 28, 0.78);
+backdrop-filter: blur(14px);
+-webkit-backdrop-filter: blur(14px);
+border: 1px solid rgba(56, 189, 248, 0.24);
+box-shadow:
+0 10px 32px rgba(0, 0, 0, 0.55),
+inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Scrollbar tipis dan bersih untuk panel samping & drawer Timeline */
+.custom-scroll::-webkit-scrollbar {
+width: 5px;
+height: 5px;
+}
+
+.custom-scroll::-webkit-scrollbar-track {
+background: rgba(15, 23, 42, 0.45);
+border-radius: 9999px;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb {
+background: rgba(56, 189, 248, 0.35);
+border-radius: 9999px;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+background: rgba(56, 189, 248, 0.65);
+}
+
+/* --- 3. FLEXIBLE X/Y TVC GIMBAL PAD --- */
+.gimbal-pad {
+position: relative;
+width: 96px;
+height: 96px;
+border-radius: 9999px;
+background: radial-gradient(
+circle at center,
+rgba(34, 211, 238, 0.16) 0%,
+rgba(15, 23, 42, 0.92) 72%
+);
+border: 1.5px solid rgba(34, 211, 238, 0.48);
+box-shadow: inset 0 0 18px rgba(8, 145, 178, 0.25);
+touch-action: none;
+cursor: crosshair;
+overflow: hidden;
+}
+
+/* Lingkaran referensi ±7.5° di tengah pad gimbal */
+.gimbal-pad::before {
+content: '';
+position: absolute;
+inset: 24%;
+border-radius: 9999px;
+border: 1px dashed rgba(56, 189, 248, 0.25);
+pointer-events: none;
+}
+
+.gimbal-knob {
+position: absolute;
+width: 16px;
+height: 16px;
+border-radius: 9999px;
+background: radial-gradient(circle at 30% 30%, #e0f2fe, #06b6d4);
+border: 2px solid #ffffff;
+left: 50%;
+top: 50%;
+transform: translate(-50%, -50%);
+pointer-events: none;
+box-shadow:
+0 0 12px rgba(34, 211, 238, 0.95),
+0 2px 6px rgba(0, 0, 0, 0.6);
+transition: left 0.04s linear, top 0.04s linear;
+}
+
+/* --- 4. DUAL LIVE LANDING MONITORS (MULTI-VIEWPORT PiP) --- */
+.pip-card {
+background: rgba(4, 10, 22, 0.28);
+border: 1.5px solid rgba(56, 189, 248, 0.42);
+box-shadow: 0 12px 30px rgba(0, 0, 0, 0.65);
+transition:
+width 0.25s ease,
+border-color 0.25s ease,
+box-shadow 0.25s ease,
+transform 0.2s ease;
+}
+
+.pip-card:hover {
+border-color: rgba(34, 211, 238, 0.85);
+transform: translateY(-2px);
+}
+
+/* PENTING: Area viewport PiP HARUS transparan penuh agar render scissor WebGL terlihat tajam */
+.pip-viewport {
+position: relative;
+background: transparent;
+pointer-events: none;
+overflow: hidden;
+transition: height 0.25s ease;
+}
+
+/* Reticle crosshair ala kamera telemetri SpaceX di atas jendela PiP */
+.pip-viewport::before,
+.pip-viewport::after {
+content: '';
+position: absolute;
+left: 50%;
+top: 50%;
+transform: translate(-50%, -50%);
+pointer-events: none;
+}
+
+.pip-viewport::before {
+width: 24px;
+height: 1px;
+background: rgba(224, 242, 254, 0.35);
+}
+
+.pip-viewport::after {
+width: 1px;
+height: 24px;
+background: rgba(224, 242, 254, 0.35);
+}
+
+/* Mode Perbesar Monitor (diaktifkan tombol Perbesar) */
+#pip-dock.pip-enlarged .pip-card {
+width: 310px;
+}
+
+#pip-dock.pip-enlarged .pip-viewport {
+height: 174px;
+}
+
+/* Indikator berdenyut saat fase kritis (Reentry Plasma / Flip Burn / Booster Landing Burn) */
+.pip-critical {
+border-color: #f59e0b !important;
+animation: pulseCritical 1.15s ease-in-out infinite;
+}
+
+/* Indikator sukses saat Mechazilla Catch atau Booster ASDS Touchdown */
+.pip-success {
+border-color: #10b981 !important;
+animation: pulseSuccess 2s ease-in-out infinite;
+}
+
+@keyframes pulseCritical {
+0%,
+100% {
+box-shadow: 0 0 14px rgba(245, 158, 11, 0.45);
+}
+50% {
+box-shadow: 0 0 28px rgba(245, 158, 11, 0.9);
+}
+}
+
+@keyframes pulseSuccess {
+0%,
+100% {
+box-shadow: 0 0 14px rgba(16, 185, 129, 0.45);
+}
+50% {
+box-shadow: 0 0 26px rgba(16, 185, 129, 0.85);
+}
+}
+
+/* --- 5. RESPONSIVE ADJUSTMENTS (MOBILE & TABLET) --- */
+@media (max-width: 768px) {
+#left-panel {
+width: 214px;
+}
+
+@media (max-width: 900px) {
+  #right-panel { display: none; }
+  #pip-dock, #pip-dock.pip-enlarged { --monitor-width: min(180px, 38vw); }
+}
+
+#pip-dock.pip-enlarged .pip-card {
+width: 240px;
+}
+
+#pip-dock.pip-enlarged .pip-viewport {
+height: 132px;
+}
+}
